@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: business_logic/v5.1/geographicalSurroundings.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: business_logic/v5.1/geographicalSurroundings.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * In this module the geographical surroundings is calculated.
+ * @module business_logic/geographicalSurroundings
+ */
+
+
+var dbAccess= require('../../persistence/dbAccess_v5');
+var queries = require('./dbQueries');
+
+
+const UNKNOWN = {
+    osmKey: 'unknown',
+    osmValue: 'unknown',
+    description: 'No tagging possible.'
+};
+
+
+/**
+ * Queries the database for the keys boundary, "natural", leisure and landuse for the download and the upload and returns
+ * the result.
+ *
+ * @param {Array} positions - the array is expected to have the best three positions in it, positions should be the result of choosePositions from positionsHelper
+ * @see business_logic/positionsHelper
+ * @param {function} callback - function which will be called with the result of the database, param1 of callback is the error
+ * which is null if no error occurred, param2 of callback is the result
+ */
+function getGeographicalSurroundings(positions, callback) {
+
+    var queryPositions = queries.makeMultipoints(positions);
+
+    dbAccess.queryMultiple(queries.FIND_MIDDLE_POINT, queryPositions, function (error, result) {
+
+        if(error) {
+            callback(error);
+            return;
+        }
+
+        /*DEMO-Points
+         boundary: POINT(8.55777 47.2495) -> protected_area
+         natural: POINT(8.7048 47.3611) -> wetland
+         leisure: POINT(8.55777 47.2495) -> nature_reserve
+         landuse: POINT(8.6875 47.2157) -> forest
+         multiple entries: POINT(8.73956 47.54351) -> natural: scrub / leisure: natural_reserve
+         */
+
+        queryPositions = [result[0][0].st_astext, result[1][0].st_astext];
+
+        dbAccess.queryMultiple(queries.GEOGRAPHICAL_QUERY, queryPositions, function (error, result) {
+
+            if(error) {
+                callback(error);
+                return;
+            }
+
+            var downloadResult = [];
+            var uploadResult = [];
+
+            if(result[0].length) {
+                downloadResult = result[0][0];
+            }
+
+            if(result[1].length) {
+                uploadResult = result[1][0];
+            }
+
+            var resultObj = {
+                download: prepareResult(downloadResult),
+                upload: prepareResult(uploadResult)
+            };
+
+            callback(null, resultObj);
+        });
+    });
+}
+
+/**
+ * Changes result of database query into an object.
+ *
+ * @param {object} dbResult - result of the database query
+ * @returns {object} object with following: {osmKey: string, osmValue: string, description: string}
+ */
+function prepareResult(dbResult) {
+
+    const DESCRIPTION = 'Tag comes from: OpenStreetMap';
+
+    var prepared = {
+        osmKey: UNKNOWN.osmKey,
+        osmValue: UNKNOWN.osmValue,
+        description: UNKNOWN.description
+    };
+
+    for (var entry in dbResult) {
+
+        if (dbResult.hasOwnProperty(entry) &amp;&amp; dbResult[entry] !== null) {
+
+            prepared.osmKey = entry;
+            prepared.osmValue = dbResult[entry];
+            prepared.description = DESCRIPTION;
+        }
+    }
+
+    return prepared;
+}
+
+
+module.exports = {
+    "getGeographicalSurroundings": getGeographicalSurroundings
+};</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-business_logic_dbQueries.html">business_logic/dbQueries</a></li><li><a href="module-business_logic_errorLogger.html">business_logic/errorLogger</a></li><li><a href="module-business_logic_geographicalSurroundings.html">business_logic/geographicalSurroundings</a></li><li><a href="module-business_logic_jsonHelper.html">business_logic/jsonHelper</a></li><li><a href="module-business_logic_location.html">business_logic/location</a></li><li><a href="module-business_logic_populationSurroundings.html">business_logic/populationSurroundings</a></li><li><a href="module-business_logic_positionsHelper.html">business_logic/positionsHelper</a></li><li><a href="module-business_logic_surroundingsCommunication.html">business_logic/surroundingsCommunication</a></li><li><a href="module-business_logic_taggingCommunication.html">business_logic/taggingCommunication</a></li><li><a href="module-business_logic_typeOfMotion.html">business_logic/typeOfMotion</a></li><li><a href="module-business_logic_velocity.html">business_logic/velocity</a></li><li><a href="module-business_logic_velocityCommunication.html">business_logic/velocityCommunication</a></li><li><a href="module-config_configReader.html">config/configReader</a></li><li><a href="module-persistence_dbAccess.html">persistence/dbAccess</a></li><li><a href="module-public_javascripts_apiSchemas.html">public/javascripts/apiSchemas</a></li><li><a href="module-public_javascripts_initForm.html">public/javascripts/initForm</a></li><li><a href="module-public_javascripts_initMap.html">public/javascripts/initMap</a></li><li><a href="module-public_javascripts_materialDesign.html">public/javascripts/materialDesign</a></li><li><a href="module-public_javascripts_sendRequest.html">public/javascripts/sendRequest</a></li><li><a href="module-public_javascripts_setInputAsMarker.html">public/javascripts/setInputAsMarker</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Thu Jun 15 2017 20:59:40 GMT+0200 (Mitteleuropäische Sommerzeit)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
